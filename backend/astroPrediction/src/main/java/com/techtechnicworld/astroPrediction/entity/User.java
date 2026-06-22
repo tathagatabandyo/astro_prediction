@@ -20,22 +20,24 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.OneToOne;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 @Entity
 @Table(name = "users")
 @NoArgsConstructor
 @Builder
+@Setter
+@Getter
 @AllArgsConstructor
 public class User extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private java.util.UUID id;
+    private Long id;
 
     @Column(name = "full_name", nullable = false, length = 100)
     private String fullName;
@@ -46,7 +48,7 @@ public class User extends BaseEntity {
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 
-    @Column(name = "profile_image_id", nullable = true)
+    @Column(name = "profile_image_id")
     private Long profileImageId;
 
     @Column(name = "date_of_birth")
