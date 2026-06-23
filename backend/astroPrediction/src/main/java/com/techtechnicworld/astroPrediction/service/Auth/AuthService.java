@@ -1,8 +1,6 @@
 package com.techtechnicworld.astroPrediction.service.Auth;
 
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.LocalDateTime;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -23,9 +21,9 @@ import com.techtechnicworld.astroPrediction.repository.UserRepository;
 import com.techtechnicworld.astroPrediction.repository.UserRoleRepository;
 import com.techtechnicworld.astroPrediction.repository.WalletRepository;
 import com.techtechnicworld.astroPrediction.security.JwtUtil;
+import com.techtechnicworld.astroPrediction.service.email.EmailService;
 import com.techtechnicworld.enums.RoleName;
 
-import io.jsonwebtoken.Jwts;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -43,6 +41,7 @@ public class AuthService implements IAuthService {
     private final UserRoleRepository userRoleRepository;
     private final WalletRepository walletRepository;
     private final JwtUtil jwtUtil;
+    private final EmailService emailService;
 
     @Override
     @Transactional
@@ -76,10 +75,33 @@ public class AuthService implements IAuthService {
         walletRepository.save(wallet);
 
         String token = jwtUtil.generateVerificationToken(userEntity);
-        // emailService.sendVerificationEmail(userEntity.getEmail(),
-        // userEntity.getFullName(), token);
+        emailService.sendVerificationEmail(userEntity.getEmail(),
+                userEntity.getFullName(), token);
 
         return ApiResponse.success("Registration successful. Please check your email to verify your account.", null);
+    }
+
+    @Override
+    @Transactional
+    public ApiResponse<Void> verifyEmail(String token) {
+        if (!jwtUtil.validateVerificationToken(token)) {
+            throw new BadRequestException("Invalid or expired verification token");
+        }
+
+        String email = jwtUtil.extractEmailFromVerificationToken(token);
+
+        User userEntity = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (Boolean.TRUE.equals(userEntity.getEmailVerified())) {
+            throw new BadRequestException("Email is already verified");
+        }
+
+        userEntity.setEmailVerified(true);
+        userEntity.setEmailVerifiedAt(LocalDateTime.now());
+        userRepository.save(userEntity);
+
+        return ApiResponse.success("Email verified successfully", null);
     }
 
     @Override
@@ -98,12 +120,6 @@ public class AuthService implements IAuthService {
     public ApiResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'logout'");
-    }
-
-    @Override
-    public ApiResponse<Void> verifyEmail(String token) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'verifyEmail'");
     }
 
     @Override

@@ -3,7 +3,6 @@ package com.techtechnicworld.astroPrediction.security;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
@@ -21,6 +20,11 @@ import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtil {
+
+        private static final String CLAIM_USER_ID = "userId";
+        private static final String CLAIM_EMAIL = "email";
+        private static final String CLAIM_TYPE = "type";
+
         @Value("${jwt.access.secret}")
         private String accessSecret;
 
@@ -39,140 +43,107 @@ public class JwtUtil {
         @Value("${jwt.verification.expiration}")
         private long verificationExpiration;
 
-        /*
-         * EMAIL VERIFICATION TOKEN
-         */
+        // --- GENERATE ---
 
-        public String generateVerificationToken(User user) {
-
-                Map<String, Object> claims = new HashMap<>();
-
-                claims.put("userId", user.getId());
-                claims.put("email", user.getEmail());
-                claims.put("type", "EMAIL_VERIFICATION");
-
-                return buildToken(
-                                claims,
-                                user.getId().toString(),
-                                verificationExpiration,
-                                verificationSecret);
-        }
-
-        /*
-         * ACCESS TOKEN
-         */
         public String generateAccessToken(User user) {
-
-                Map<String, Object> claims = new HashMap<>();
-
-                claims.put("userId", user.getId());
-                claims.put("email", user.getEmail());
-
                 return buildToken(
-                                claims,
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "ACCESS"),
                                 user.getId().toString(),
                                 accessExpiration,
                                 accessSecret);
         }
 
-        /*
-         * REFRESH TOKEN
-         */
         public String generateRefreshToken(User user) {
-
-                Map<String, Object> claims = new HashMap<>();
-
-                claims.put("userId", user.getId());
-                claims.put("type", "REFRESH");
-
                 return buildToken(
-                                claims,
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "REFRESH"),
                                 user.getId().toString(),
                                 refreshExpiration,
                                 refreshSecret);
         }
 
-        /*
-         * COMMON TOKEN BUILDER
-         */
-        private String buildToken(
-                        Map<String, Object> claims,
-                        String subject,
-                        long expirationMillis,
-                        String secret) {
-
-                Instant now = Instant.now();
-
-                Instant expiry = now.plusMillis(expirationMillis);
-
-                return Jwts.builder()
-                                .claims(claims)
-                                .subject(subject)
-                                .issuedAt(Date.from(now))
-                                .expiration(Date.from(expiry))
-                                .signWith(getSigningKey(secret))
-                                .compact();
+        public String generateVerificationToken(User user) {
+                return buildToken(
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE,
+                                                "EMAIL_VERIFICATION"),
+                                user.getId().toString(),
+                                verificationExpiration,
+                                verificationSecret);
         }
+
+        // --- VALIDATE ---
 
         public boolean validateToken(String token, String secret) {
                 try {
-                        Jwts.parser()
-                                        .verifyWith(getSigningKey(secret))
-                                        .build()
-                                        .parseSignedClaims(token);
-
+                        getClaims(token, secret);
                         return true;
-
-                } catch (Exception ex) {
+                } catch (Exception _) {
                         return false;
                 }
         }
 
-        /*
-         * ACCESS TOKEN VALIDATION
-         */
-
-        public boolean validateAccessToken(
-                        String token,
-                        UserDetails userDetails) {
-
-                String email = extractEmail(token, accessSecret);
-
-                return email.equals(
-                                userDetails.getUsername())
-                                && !isTokenExpired(token, accessSecret);
+        public boolean validateAccessToken(String token, UserDetails userDetails) {
+                try {
+                        Claims claims = getClaims(token, accessSecret);
+                        return "ACCESS".equals(claims.get(CLAIM_TYPE))
+                                        && userDetails.getUsername().equals(claims.get(CLAIM_EMAIL, String.class));
+                } catch (Exception _) {
+                        return false;
+                }
         }
 
-        /*
-         * REFRESH TOKEN VALIDATION
-         */
-
-        public boolean validateRefreshToken(
-                        String token) {
-
-                Claims claims = getClaims(token, refreshSecret);
-
-                return "REFRESH".equals(
-                                claims.get("type"))
-                                && !isTokenExpired(
-                                                token,
-                                                refreshSecret);
+        public boolean validateRefreshToken(String token) {
+                try {
+                        Claims claims = getClaims(token, refreshSecret);
+                        return "REFRESH".equals(claims.get(CLAIM_TYPE));
+                } catch (Exception _) {
+                        return false;
+                }
         }
-
-        /*
-         * EMAIL VERIFICATION VALIDATION
-         */
 
         public boolean validateVerificationToken(String token) {
+                try {
+                        Claims claims = getClaims(token, verificationSecret);
+                        return "EMAIL_VERIFICATION".equals(claims.get(CLAIM_TYPE));
+                } catch (Exception _) {
+                        return false;
+                }
+        }
 
-                Claims claims = getClaims(
-                                token,
-                                verificationSecret);
+        // --- EXTRACT (typed convenience) ---
 
-                return "EMAIL_VERIFICATION".equals(claims.get("type")) &&
-                                !isTokenExpired(
-                                                token,
-                                                verificationSecret);
+        public String extractEmailFromVerificationToken(String token) {
+                return extractEmail(token, verificationSecret);
+        }
+
+        // --- EXTRACT ---
+
+        public String extractEmail(String token, String secret) {
+                return extractClaim(token, c -> c.get(CLAIM_EMAIL, String.class), secret);
+        }
+
+        public String extractUserId(String token, String secret) {
+                return extractClaim(token, Claims::getSubject, secret);
+        }
+
+        public boolean isTokenExpired(String token, String secret) {
+                return extractClaim(token, Claims::getExpiration, secret).before(new Date());
+        }
+
+        public <T> T extractClaim(String token, Function<Claims, T> resolver, String secret) {
+                return resolver.apply(getClaims(token, secret));
+        }
+
+        // --- PRIVATE ---
+
+        private String buildToken(Map<String, Object> claims, String subject, long expirationMillis, String secret) {
+                Instant now = Instant.now();
+                return Jwts.builder()
+                                .claims(claims)
+                                .subject(subject)
+                                .issuedAt(Date.from(now))
+                                .expiration(Date.from(now.plusMillis(expirationMillis)))
+                                .signWith(getSigningKey(secret))
+                                .compact();
         }
 
         private Claims getClaims(String token, String secret) {
@@ -183,46 +154,7 @@ public class JwtUtil {
                                 .getPayload();
         }
 
-        public <T> T extractClaim(String token, Function<Claims, T> resolver, String secret) {
-                return resolver.apply(getClaims(token, secret));
-        }
-
-        /*
-         * EXTRACT EMAIL
-         */
-
-        public String extractEmail(String token, String secret) {
-                return getClaims(token, secret).get("email", String.class);
-        }
-
-        public String extractUserId(String token, String secret) {
-                return getClaims(token, secret).getSubject();
-        }
-
-        /*
-         * TOKEN EXPIRATION
-         */
-
-        public boolean isTokenExpired(
-                        String token,
-                        String secret) {
-
-                return extractClaim(
-                                token,
-                                Claims::getExpiration,
-                                secret)
-                                .before(new Date());
-        }
-
-        /*
-         * SIGNING KEY
-         */
-
-        private SecretKey getSigningKey(
-                        String secret) {
-
-                return Keys.hmacShaKeyFor(
-                                secret.getBytes(
-                                                StandardCharsets.UTF_8));
+        private SecretKey getSigningKey(String secret) {
+                return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         }
 }

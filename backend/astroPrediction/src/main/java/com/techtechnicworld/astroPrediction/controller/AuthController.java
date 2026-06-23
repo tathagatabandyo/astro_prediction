@@ -1,6 +1,7 @@
 package com.techtechnicworld.astroPrediction.controller;
 
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
@@ -40,4 +41,10 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         return ResponseEntity.ok(authService.logout(httpServletRequest, httpServletResponse));
     }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<ApiResponse<Void>> postMethodName(@RequestParam String token) {
+        return ResponseEntity.ok(authService.verifyEmail(token));
+    }
+    
 }
