@@ -4,6 +4,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 import javax.crypto.SecretKey;
@@ -24,6 +25,7 @@ public class JwtUtil {
         private static final String CLAIM_USER_ID = "userId";
         private static final String CLAIM_EMAIL = "email";
         private static final String CLAIM_TYPE = "type";
+        private static final String CLAIM_SESSION_ID = "sessionId";
 
         @Value("${jwt.access.secret}")
         private String accessSecret;
@@ -45,17 +47,17 @@ public class JwtUtil {
 
         // --- GENERATE ---
 
-        public String generateAccessToken(User user) {
+        public String generateAccessToken(User user, String sessionId) {
                 return buildToken(
-                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "ACCESS"),
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "ACCESS", CLAIM_SESSION_ID, sessionId),
                                 user.getId().toString(),
                                 accessExpiration,
                                 accessSecret);
         }
 
-        public String generateRefreshToken(User user) {
+        public String generateRefreshToken(User user, String sessionId) {
                 return buildToken(
-                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "REFRESH"),
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "REFRESH", CLAIM_SESSION_ID, sessionId),
                                 user.getId().toString(),
                                 refreshExpiration,
                                 refreshSecret);
@@ -109,6 +111,10 @@ public class JwtUtil {
                 }
         }
 
+        public long getAccessExpiration() {
+                return accessExpiration;
+        }
+
         // --- EXTRACT (typed convenience) ---
 
         public String extractEmailFromVerificationToken(String token) {
@@ -140,6 +146,7 @@ public class JwtUtil {
                 return Jwts.builder()
                                 .claims(claims)
                                 .subject(subject)
+                                .id(UUID.randomUUID().toString())
                                 .issuedAt(Date.from(now))
                                 .expiration(Date.from(now.plusMillis(expirationMillis)))
                                 .signWith(getSigningKey(secret))

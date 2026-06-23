@@ -1,6 +1,7 @@
 package com.techtechnicworld.astroPrediction.service.Auth;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -10,18 +11,26 @@ import com.techtechnicworld.astroPrediction.dto.AuthResponse;
 import com.techtechnicworld.astroPrediction.dto.LoginRequest;
 import com.techtechnicworld.astroPrediction.dto.PasswordUpdateRequest;
 import com.techtechnicworld.astroPrediction.dto.RegisterRequest;
+import com.techtechnicworld.astroPrediction.entity.LoginAudit;
 import com.techtechnicworld.astroPrediction.entity.Role;
 import com.techtechnicworld.astroPrediction.entity.User;
 import com.techtechnicworld.astroPrediction.entity.UserRole;
+import com.techtechnicworld.astroPrediction.entity.UserSession;
 import com.techtechnicworld.astroPrediction.entity.Wallet;
 import com.techtechnicworld.astroPrediction.exception.BadRequestException;
 import com.techtechnicworld.astroPrediction.exception.ResourceNotFoundException;
+import com.techtechnicworld.astroPrediction.exception.UnauthorizedException;
+import com.techtechnicworld.astroPrediction.repository.LoginAuditRepository;
 import com.techtechnicworld.astroPrediction.repository.RoleRepository;
 import com.techtechnicworld.astroPrediction.repository.UserRepository;
 import com.techtechnicworld.astroPrediction.repository.UserRoleRepository;
+import com.techtechnicworld.astroPrediction.repository.UserSessionRepository;
 import com.techtechnicworld.astroPrediction.repository.WalletRepository;
 import com.techtechnicworld.astroPrediction.security.JwtUtil;
 import com.techtechnicworld.astroPrediction.service.email.EmailService;
+import com.techtechnicworld.astroPrediction.util.DeviceInfoUtil;
+import com.techtechnicworld.enums.AuditEventType;
+import com.techtechnicworld.enums.DeviceType;
 import com.techtechnicworld.enums.RoleName;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -42,6 +51,9 @@ public class AuthService implements IAuthService {
     private final WalletRepository walletRepository;
     private final JwtUtil jwtUtil;
     private final EmailService emailService;
+    private final UserSessionRepository userSessionRepository;
+    private final DeviceInfoUtil deviceInfoUtil;
+    private final LoginAuditRepository loginAuditRepository;
 
     @Override
     @Transactional
@@ -105,9 +117,75 @@ public class AuthService implements IAuthService {
     }
 
     @Override
-    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest servletRequest) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'login'");
+    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest httpServletRequest) {
+        User userEntity = userRepository.findByEmail(request.email())
+                .orElseThrow(() -> {
+                    this.logLoginAudit(null, request.email(), AuditEventType.LOGIN_FAILURE, httpServletRequest);
+                    return new BadRequestException("User not found");
+                });
+
+        if (!Boolean.TRUE.equals(userEntity.getIsActive())) {
+            throw new UnauthorizedException("Account is deactivated");
+        }
+
+        if (!Boolean.TRUE.equals(userEntity.getEmailVerified())) {
+            throw new UnauthorizedException("Email is not verified");
+        }
+
+        if (!passwordEncoder.matches(request.password(), userEntity.getPassword())) {
+            this.logLoginAudit(userEntity, request.email(), AuditEventType.LOGIN_FAILURE, httpServletRequest);
+            throw new UnauthorizedException("Invalid credentials");
+        }
+
+        String sessionId = UUID.randomUUID().toString();
+        String accessToken = jwtUtil.generateAccessToken(userEntity, sessionId);
+        String refreshToken = jwtUtil.generateRefreshToken(userEntity, sessionId);
+
+        DeviceType deviceType = request.deviceType() != null ? request.deviceType() : DeviceType.WEB_BROWSER;
+
+        this.createUserSession(userEntity, sessionId, deviceType, request.deviceId(), httpServletRequest);
+        this.logLoginAudit(userEntity, request.email(), AuditEventType.LOGIN_SUCCESS, httpServletRequest);
+
+        return ApiResponse.success("Login successful", new AuthResponse(
+                accessToken,
+                jwtUtil.getAccessExpiration(),
+                sessionId,
+                "Bearer"));
+    }
+
+    private void createUserSession(User user, String sessionId, DeviceType deviceType, String deviceId,
+            HttpServletRequest httpServletRequest) {
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+
+        UserSession userSessionEntity = UserSession.builder()
+                .user(user)
+                .sessionId(sessionId)
+                .deviceId(deviceId)
+                .deviceType(deviceType)
+                .browser(deviceInfoUtil.extractBrowser(userAgent))
+                .operatingSystem(deviceInfoUtil.extractOS(userAgent))
+                .userAgent(userAgent)
+                .ipAddress(deviceInfoUtil.getClientIp(httpServletRequest))
+                .loginMethod("PASSWORD")
+                .lastActivityAt(LocalDateTime.now())
+                .expiresAt(LocalDateTime.now().plusDays(30))
+                .build();
+        userSessionRepository.save(userSessionEntity);
+    }
+
+    private void logLoginAudit(User loginUser, String loginEmail, AuditEventType eventType,
+            HttpServletRequest httpServletRequest) {
+        String userAgent = httpServletRequest.getHeader("User-Agent");
+        LoginAudit audit = LoginAudit.builder()
+                .user(loginUser)
+                .eventType(eventType)
+                .deviceType(deviceInfoUtil.extractBrowser(userAgent))
+                .browser(deviceInfoUtil.extractBrowser(userAgent))
+                .os(deviceInfoUtil.extractOS(userAgent))
+                .ipAddress(deviceInfoUtil.getClientIp(httpServletRequest))
+                .details(eventType == AuditEventType.LOGIN_FAILURE ? "Failed login for: " + loginEmail : null)
+                .build();
+        loginAuditRepository.save(audit);
     }
 
     @Override
