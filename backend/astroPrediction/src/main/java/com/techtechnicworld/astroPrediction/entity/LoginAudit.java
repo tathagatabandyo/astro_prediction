@@ -21,7 +21,12 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "login_audits", indexes = @Index(name = "idx_user_audit", columnList = "user_id"))
+@Table(name = "login_audits", indexes = {
+        @Index(name = "idx_audit_user_id", columnList = "user_id"),
+        @Index(name = "idx_audit_user_event", columnList = "user_id, event_type"),
+        @Index(name = "idx_audit_user_created", columnList = "user_id, created_at"),
+        @Index(name = "idx_audit_ip", columnList = "ip_address"),
+})
 @Builder
 @Setter
 @Getter

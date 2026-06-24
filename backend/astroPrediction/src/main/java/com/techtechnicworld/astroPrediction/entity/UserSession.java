@@ -25,7 +25,8 @@ import lombok.Setter;
 @Entity
 @Table(name = "user_sessions", indexes = {
         @Index(name = "idx_session_id", columnList = "session_id"),
-        @Index(name = "idx_user_sessions", columnList = "user_id")
+        @Index(name = "idx_user_sessions", columnList = "user_id"),
+        @Index(name = "idx_session_user_revoked_expires", columnList = "user_id, revoked, expires_at"),
 })
 @Builder
 @Getter

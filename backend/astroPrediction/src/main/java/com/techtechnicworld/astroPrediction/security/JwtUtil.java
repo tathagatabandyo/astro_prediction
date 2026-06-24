@@ -14,6 +14,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
 import com.techtechnicworld.astroPrediction.entity.User;
+import com.techtechnicworld.enums.TokenType;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -49,7 +50,8 @@ public class JwtUtil {
 
         public String generateAccessToken(User user, String sessionId) {
                 return buildToken(
-                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "ACCESS", CLAIM_SESSION_ID, sessionId),
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(),
+                                                CLAIM_TYPE, TokenType.ACCESS.name(), CLAIM_SESSION_ID, sessionId),
                                 user.getId().toString(),
                                 accessExpiration,
                                 accessSecret);
@@ -57,7 +59,8 @@ public class JwtUtil {
 
         public String generateRefreshToken(User user, String sessionId) {
                 return buildToken(
-                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE, "REFRESH", CLAIM_SESSION_ID, sessionId),
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(),
+                                                CLAIM_TYPE, TokenType.REFRESH.name(), CLAIM_SESSION_ID, sessionId),
                                 user.getId().toString(),
                                 refreshExpiration,
                                 refreshSecret);
@@ -65,8 +68,8 @@ public class JwtUtil {
 
         public String generateVerificationToken(User user) {
                 return buildToken(
-                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(), CLAIM_TYPE,
-                                                "EMAIL_VERIFICATION"),
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(),
+                                                CLAIM_TYPE, TokenType.EMAIL_VERIFICATION.name()),
                                 user.getId().toString(),
                                 verificationExpiration,
                                 verificationSecret);
@@ -85,9 +88,18 @@ public class JwtUtil {
 
         public boolean validateAccessToken(String token, UserDetails userDetails) {
                 try {
-                        Claims claims = getClaims(token, accessSecret);
-                        return "ACCESS".equals(claims.get(CLAIM_TYPE))
+                        Claims claims = getClaims(token, TokenType.ACCESS);
+                        return TokenType.ACCESS.name().equals(claims.get(CLAIM_TYPE))
                                         && userDetails.getUsername().equals(claims.get(CLAIM_EMAIL, String.class));
+                } catch (Exception _) {
+                        return false;
+                }
+        }
+
+        public boolean validateAccessToken(String token) {
+                try {
+                        Claims claims = getClaims(token, TokenType.ACCESS);
+                        return TokenType.ACCESS.name().equals(claims.get(CLAIM_TYPE));
                 } catch (Exception _) {
                         return false;
                 }
@@ -95,8 +107,8 @@ public class JwtUtil {
 
         public boolean validateRefreshToken(String token) {
                 try {
-                        Claims claims = getClaims(token, refreshSecret);
-                        return "REFRESH".equals(claims.get(CLAIM_TYPE));
+                        Claims claims = getClaims(token, TokenType.REFRESH);
+                        return TokenType.REFRESH.name().equals(claims.get(CLAIM_TYPE));
                 } catch (Exception _) {
                         return false;
                 }
@@ -104,21 +116,39 @@ public class JwtUtil {
 
         public boolean validateVerificationToken(String token) {
                 try {
-                        Claims claims = getClaims(token, verificationSecret);
-                        return "EMAIL_VERIFICATION".equals(claims.get(CLAIM_TYPE));
+                        Claims claims = getClaims(token, TokenType.EMAIL_VERIFICATION);
+                        return TokenType.EMAIL_VERIFICATION.name().equals(claims.get(CLAIM_TYPE));
                 } catch (Exception _) {
                         return false;
                 }
         }
 
+        // --- EXPIRATION ---
+
         public long getAccessExpiration() {
                 return accessExpiration;
         }
 
+        public long getRefreshExpiration() {
+                return refreshExpiration;
+        }
+
         // --- EXTRACT (typed convenience) ---
 
+        public String extractEmailFromAccessToken(String token) {
+                return extractEmail(token, TokenType.ACCESS);
+        }
+
         public String extractEmailFromVerificationToken(String token) {
-                return extractEmail(token, verificationSecret);
+                return extractEmail(token, TokenType.EMAIL_VERIFICATION);
+        }
+
+        public String extractSessionIdFromRefreshToken(String token) {
+                return extractClaim(token, c -> c.get(CLAIM_SESSION_ID, String.class), refreshSecret);
+        }
+
+        public String extractTokenId(String token, TokenType tokenType) {
+                return getClaims(token, tokenType).getId();
         }
 
         // --- EXTRACT ---
@@ -127,8 +157,12 @@ public class JwtUtil {
                 return extractClaim(token, c -> c.get(CLAIM_EMAIL, String.class), secret);
         }
 
-        public String extractUserId(String token, String secret) {
-                return extractClaim(token, Claims::getSubject, secret);
+        public String extractEmail(String token, TokenType tokenType) {
+                return extractEmail(token, getSecretByTokenType(tokenType));
+        }
+
+        public String extractUserId(String token, TokenType tokenType) {
+                return extractClaim(token, Claims::getSubject, getSecretByTokenType(tokenType));
         }
 
         public boolean isTokenExpired(String token, String secret) {
@@ -159,6 +193,18 @@ public class JwtUtil {
                                 .build()
                                 .parseSignedClaims(token)
                                 .getPayload();
+        }
+
+        private Claims getClaims(String token, TokenType tokenType) {
+                return getClaims(token, getSecretByTokenType(tokenType));
+        }
+
+        private String getSecretByTokenType(TokenType tokenType) {
+                return switch (tokenType) {
+                        case ACCESS -> accessSecret;
+                        case REFRESH -> refreshSecret;
+                        case EMAIL_VERIFICATION -> verificationSecret;
+                };
         }
 
         private SecretKey getSigningKey(String secret) {

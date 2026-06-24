@@ -3,6 +3,8 @@ package com.techtechnicworld.astroPrediction.service.Auth;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.ResponseCookie;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -33,6 +35,7 @@ import com.techtechnicworld.enums.AuditEventType;
 import com.techtechnicworld.enums.DeviceType;
 import com.techtechnicworld.enums.RoleName;
 
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -116,8 +119,10 @@ public class AuthService implements IAuthService {
         return ApiResponse.success("Email verified successfully", null);
     }
 
+    private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
+
     @Override
-    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest httpServletRequest) {
+    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
         User userEntity = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> {
                     this.logLoginAudit(null, request.email(), AuditEventType.LOGIN_FAILURE, httpServletRequest);
@@ -145,6 +150,7 @@ public class AuthService implements IAuthService {
 
         this.createUserSession(userEntity, sessionId, deviceType, request.deviceId(), httpServletRequest);
         this.logLoginAudit(userEntity, request.email(), AuditEventType.LOGIN_SUCCESS, httpServletRequest);
+        setRefreshCookie(httpServletResponse, refreshToken);
 
         return ApiResponse.success("Login successful", new AuthResponse(
                 accessToken,
@@ -189,9 +195,51 @@ public class AuthService implements IAuthService {
     }
 
     @Override
-    public ApiResponse<AuthResponse> refreshToken(HttpServletRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'refreshToken'");
+    public ApiResponse<AuthResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+        String refreshToken = readRefreshCookie(request);
+        if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
+            throw new UnauthorizedException("Invalid or expired refresh token");
+        }
+
+        String sessionId = jwtUtil.extractSessionIdFromRefreshToken(refreshToken);
+
+        UserSession session = userSessionRepository.findBySessionId(sessionId)
+                .orElseThrow(() -> new UnauthorizedException("Session not found"));
+
+        if (Boolean.TRUE.equals(session.getRevoked()) || session.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new UnauthorizedException("Session expired or revoked");
+        }
+
+        User user = session.getUser();
+        String newAccessToken = jwtUtil.generateAccessToken(user, sessionId);
+
+        session.setLastActivityAt(LocalDateTime.now());
+        userSessionRepository.save(session);
+
+        return ApiResponse.success("Token refreshed", new AuthResponse(
+                newAccessToken,
+                jwtUtil.getAccessExpiration(),
+                sessionId,
+                "Bearer"));
+    }
+
+    private void setRefreshCookie(HttpServletResponse response, String refreshToken) {
+        ResponseCookie cookie = ResponseCookie.from(REFRESH_TOKEN_COOKIE, refreshToken)
+                .httpOnly(true)
+                .secure(true)
+                .sameSite("Strict")
+                .path("/auth/refresh-token")
+                .maxAge(jwtUtil.getRefreshExpiration() / 1000)
+                .build();
+        response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
+    }
+
+    private String readRefreshCookie(HttpServletRequest request) {
+        if (request.getCookies() == null) return null;
+        for (Cookie cookie : request.getCookies()) {
+            if (REFRESH_TOKEN_COOKIE.equals(cookie.getName())) return cookie.getValue();
+        }
+        return null;
     }
 
     @Override

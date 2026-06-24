@@ -12,6 +12,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -22,7 +23,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "astrologer_profiles")
+@Table(name = "astrologer_profiles", indexes = {
+        @Index(name = "idx_ap_verification_status", columnList = "verification_status"),
+        @Index(name = "idx_ap_online_verified_rating", columnList = "is_online, is_verified, average_rating"),
+})
 @Getter
 @Setter
 @Builder

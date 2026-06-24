@@ -28,8 +28,13 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest httpServletRequest) {
-       return ResponseEntity.ok(authService.login(loginRequest, httpServletRequest));
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+       return ResponseEntity.ok(authService.login(loginRequest, httpServletRequest, httpServletResponse));
+    }
+
+    @PostMapping("/refresh-token")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        return ResponseEntity.ok(authService.refreshToken(httpServletRequest, httpServletResponse));
     }
 
     @PostMapping("/register")
