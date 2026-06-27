@@ -19,6 +19,7 @@ import com.techtechnicworld.enums.TokenType;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.servlet.http.HttpServletRequest;
 
 @Component
 public class JwtUtil {
@@ -45,6 +46,12 @@ public class JwtUtil {
 
         @Value("${jwt.verification.expiration}")
         private long verificationExpiration;
+
+        @Value("${jwt.forgot.password.secret}")
+        private String forgotPasswordSecret;
+
+        @Value("${jwt.forgot.password.expiration}")
+        private long forgotPasswordExpiration;
 
         // --- GENERATE ---
 
@@ -75,15 +82,13 @@ public class JwtUtil {
                                 verificationSecret);
         }
 
-        // --- VALIDATE ---
-
-        public boolean validateToken(String token, String secret) {
-                try {
-                        getClaims(token, secret);
-                        return true;
-                } catch (Exception _) {
-                        return false;
-                }
+        public String generateForgotPasswordToken(User user) {
+                return buildToken(
+                                Map.of(CLAIM_USER_ID, user.getId(), CLAIM_EMAIL, user.getEmail(),
+                                                CLAIM_TYPE, TokenType.FORGOT_PASSWORD.name()),
+                                user.getId().toString(),
+                                verificationExpiration,
+                                verificationSecret);
         }
 
         public boolean validateAccessToken(String token, UserDetails userDetails) {
@@ -123,6 +128,22 @@ public class JwtUtil {
                 }
         }
 
+        public boolean validateToken(String token, TokenType tokenType) {
+                try {
+                        Claims claims = getClaims(token, tokenType);
+
+                        // Explicit expired check (in addition to JWT signature/format validation).
+                        Date expiration = claims.getExpiration();
+                        if (expiration == null || !expiration.after(new Date())) {
+                                return false;
+                        }
+
+                        return tokenType.name().equals(claims.get(CLAIM_TYPE));
+                } catch (Exception _) {
+                        return false;
+                }
+        }
+
         // --- EXPIRATION ---
 
         public long getAccessExpiration() {
@@ -145,6 +166,10 @@ public class JwtUtil {
 
         public String extractSessionIdFromRefreshToken(String token) {
                 return extractClaim(token, c -> c.get(CLAIM_SESSION_ID, String.class), refreshSecret);
+        }
+
+        public String extractSessionId(String token, TokenType tokenType) {
+                return extractClaim(token, c -> c.get(CLAIM_SESSION_ID, String.class), getSecretByTokenType(tokenType));
         }
 
         public String extractTokenId(String token, TokenType tokenType) {
@@ -204,10 +229,21 @@ public class JwtUtil {
                         case ACCESS -> accessSecret;
                         case REFRESH -> refreshSecret;
                         case EMAIL_VERIFICATION -> verificationSecret;
+                        case FORGOT_PASSWORD -> forgotPasswordSecret;
+                        default -> throw new IllegalArgumentException("Unexpected value: " + tokenType);
                 };
         }
 
         private SecretKey getSigningKey(String secret) {
                 return Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        }
+
+        public static String getTokenFromRequest(HttpServletRequest httpServletRequest) {
+                String authHeader = httpServletRequest.getHeader("Authorization");
+
+                if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                        return authHeader.substring(7);
+                }
+                return null;
         }
 }

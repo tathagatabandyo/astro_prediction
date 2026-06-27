@@ -14,12 +14,13 @@ import com.techtechnicworld.astroPrediction.service.Auth.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-
 
 @RestController
 @RequiredArgsConstructor
@@ -28,12 +29,14 @@ public class AuthController {
     private final AuthService authService;
 
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
-       return ResponseEntity.ok(authService.login(loginRequest, httpServletRequest, httpServletResponse));
+    public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest,
+            HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+        return ResponseEntity.ok(authService.login(loginRequest, httpServletRequest, httpServletResponse));
     }
 
-    @PostMapping("/refresh-token")
-    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(HttpServletRequest httpServletRequest,
+            HttpServletResponse httpServletResponse) {
         return ResponseEntity.ok(authService.refreshToken(httpServletRequest, httpServletResponse));
     }
 
@@ -41,15 +44,35 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> register(@Valid @RequestBody RegisterRequest registerRequest) {
         return ResponseEntity.ok(authService.register(registerRequest));
     }
-    
+
     @PostMapping("/logout")
-    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    public ResponseEntity<ApiResponse<Void>> logout(HttpServletRequest httpServletRequest,
+            HttpServletResponse httpServletResponse) {
         return ResponseEntity.ok(authService.logout(httpServletRequest, httpServletResponse));
     }
 
     @PostMapping("/verify-email")
     public ResponseEntity<ApiResponse<Void>> postMethodName(@RequestParam String token) {
         return ResponseEntity.ok(authService.verifyEmail(token));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<ApiResponse<?>> resendVerification(
+            @RequestParam @NotBlank(message = "Email is required") @Email(message = "Invalid email address") String email) {
+
+        return ResponseEntity.ok(authService.resendVerification(email));
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<ApiResponse<?>> forgotPassword(
+            @RequestParam @NotBlank(message = "Email is required") @Email(message = "Invalid email address") String email) {
+
+        return ResponseEntity.ok(authService.forgotPassword(email));
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<ApiResponse<?>> resetPassword(@Valid @RequestBody PasswordUpdateRequest passwordUpdateRequest) {
+        return ResponseEntity.ok(authService.resetPassword(passwordUpdateRequest));
     }
     
 }

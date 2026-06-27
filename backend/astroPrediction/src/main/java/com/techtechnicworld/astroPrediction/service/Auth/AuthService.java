@@ -1,6 +1,8 @@
 package com.techtechnicworld.astroPrediction.service.Auth;
 
+import com.techtechnicworld.astroPrediction.repository.RevokedTokenRepository;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import org.springframework.http.HttpHeaders;
@@ -14,6 +16,7 @@ import com.techtechnicworld.astroPrediction.dto.LoginRequest;
 import com.techtechnicworld.astroPrediction.dto.PasswordUpdateRequest;
 import com.techtechnicworld.astroPrediction.dto.RegisterRequest;
 import com.techtechnicworld.astroPrediction.entity.LoginAudit;
+import com.techtechnicworld.astroPrediction.entity.RevokedToken;
 import com.techtechnicworld.astroPrediction.entity.Role;
 import com.techtechnicworld.astroPrediction.entity.User;
 import com.techtechnicworld.astroPrediction.entity.UserRole;
@@ -34,6 +37,7 @@ import com.techtechnicworld.astroPrediction.util.DeviceInfoUtil;
 import com.techtechnicworld.enums.AuditEventType;
 import com.techtechnicworld.enums.DeviceType;
 import com.techtechnicworld.enums.RoleName;
+import com.techtechnicworld.enums.TokenType;
 
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
@@ -47,6 +51,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuthService implements IAuthService {
 
+    private final RevokedTokenRepository revokedTokenRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final RoleRepository roleRepository;
@@ -113,6 +118,7 @@ public class AuthService implements IAuthService {
         }
 
         userEntity.setEmailVerified(true);
+        userEntity.setIsActive(true);
         userEntity.setEmailVerifiedAt(LocalDateTime.now());
         userRepository.save(userEntity);
 
@@ -122,7 +128,8 @@ public class AuthService implements IAuthService {
     private static final String REFRESH_TOKEN_COOKIE = "refresh_token";
 
     @Override
-    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest httpServletRequest, HttpServletResponse httpServletResponse) {
+    public ApiResponse<AuthResponse> login(LoginRequest request, HttpServletRequest httpServletRequest,
+            HttpServletResponse httpServletResponse) {
         User userEntity = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> {
                     this.logLoginAudit(null, request.email(), AuditEventType.LOGIN_FAILURE, httpServletRequest);
@@ -195,6 +202,7 @@ public class AuthService implements IAuthService {
     }
 
     @Override
+    @Transactional
     public ApiResponse<AuthResponse> refreshToken(HttpServletRequest request, HttpServletResponse response) {
         String refreshToken = readRefreshCookie(request);
         if (refreshToken == null || !jwtUtil.validateRefreshToken(refreshToken)) {
@@ -206,14 +214,15 @@ public class AuthService implements IAuthService {
         UserSession session = userSessionRepository.findBySessionId(sessionId)
                 .orElseThrow(() -> new UnauthorizedException("Session not found"));
 
-        if (Boolean.TRUE.equals(session.getRevoked()) || session.getExpiresAt().isBefore(LocalDateTime.now())) {
+        if (Boolean.TRUE.equals(session.getRevoked())
+                || session.getExpiresAt().isBefore(LocalDateTime.now(ZoneOffset.UTC))) {
             throw new UnauthorizedException("Session expired or revoked");
         }
 
         User user = session.getUser();
         String newAccessToken = jwtUtil.generateAccessToken(user, sessionId);
 
-        session.setLastActivityAt(LocalDateTime.now());
+        session.setLastActivityAt(LocalDateTime.now(ZoneOffset.UTC));
         userSessionRepository.save(session);
 
         return ApiResponse.success("Token refreshed", new AuthResponse(
@@ -228,41 +237,85 @@ public class AuthService implements IAuthService {
                 .httpOnly(true)
                 .secure(true)
                 .sameSite("Strict")
-                .path("/auth/refresh-token")
+                .path("/api/auth")
                 .maxAge(jwtUtil.getRefreshExpiration() / 1000)
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
     }
 
     private String readRefreshCookie(HttpServletRequest request) {
-        if (request.getCookies() == null) return null;
+        if (request.getCookies() == null)
+            return null;
         for (Cookie cookie : request.getCookies()) {
-            if (REFRESH_TOKEN_COOKIE.equals(cookie.getName())) return cookie.getValue();
+            if (REFRESH_TOKEN_COOKIE.equals(cookie.getName()))
+                return cookie.getValue();
         }
         return null;
     }
 
     @Override
     public ApiResponse<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'logout'");
+        String token = JwtUtil.getTokenFromRequest(request);
+        if (token != null) {
+            String tokenId = jwtUtil.extractTokenId(token, TokenType.ACCESS);
+            String sessionId = jwtUtil.extractSessionId(token, TokenType.ACCESS);
+            RevokedToken revokedToken = RevokedToken.builder()
+                    .tokenId(tokenId)
+                    .sessionId(sessionId)
+                    .expiresAt(LocalDateTime.now(ZoneOffset.UTC))
+                    .build();
+            revokedTokenRepository.save(revokedToken);
+        }
+
+        Cookie cookie = new Cookie(REFRESH_TOKEN_COOKIE, null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/api/auth");
+        cookie.setMaxAge(0);
+        response.addCookie(cookie);
+        return ApiResponse.success("Logged out successfully", null);
     }
 
     @Override
     public ApiResponse<Void> resendVerification(String email) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'resendVerification'");
+        User userEntity = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (userEntity.getEmailVerified().booleanValue()) {
+            throw new BadRequestException("Email already verified");
+        }
+
+        String token = jwtUtil.generateVerificationToken(userEntity);
+        emailService.sendVerificationEmail(userEntity.getEmail(), userEntity.getFullName(), token);
+
+        return ApiResponse.success("Verification email sent", null);
     }
 
     @Override
     public ApiResponse<Void> forgotPassword(String email) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'forgotPassword'");
+        User userEntity = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        String token = jwtUtil.generateForgotPasswordToken(userEntity);
+        emailService.sendPasswordResetEmail(userEntity.getEmail(), userEntity.getFullName(), token);
+
+        return ApiResponse.success("If an account exists with this email, a password reset link will be sent.", null);
     }
 
     @Override
     public ApiResponse<Void> resetPassword(PasswordUpdateRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'resetPassword'");
+        if (!jwtUtil.validateToken(request.token(), TokenType.FORGOT_PASSWORD)) {
+            throw new BadRequestException("Invalid or expired token");
+        }
+
+        String email = jwtUtil.extractEmail(request.token(), TokenType.FORGOT_PASSWORD);
+
+        User userEntity = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        userEntity.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(userEntity);
+
+        return ApiResponse.success("Password updated successfully", null);
     }
 }
