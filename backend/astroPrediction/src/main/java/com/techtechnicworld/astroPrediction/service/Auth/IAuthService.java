@@ -1,4 +1,4 @@
-package com.techtechnicworld.astroPrediction.service.Auth;
+package com.techtechnicworld.astroPrediction.service.auth;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
 import com.techtechnicworld.astroPrediction.dto.AuthResponse;

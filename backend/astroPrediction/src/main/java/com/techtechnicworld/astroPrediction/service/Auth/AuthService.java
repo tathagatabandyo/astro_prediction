@@ -1,4 +1,4 @@
-package com.techtechnicworld.astroPrediction.service.Auth;
+package com.techtechnicworld.astroPrediction.service.auth;
 
 import com.techtechnicworld.astroPrediction.repository.RevokedTokenRepository;
 import java.time.LocalDateTime;

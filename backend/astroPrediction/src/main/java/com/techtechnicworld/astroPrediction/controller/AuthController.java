@@ -9,7 +9,7 @@ import com.techtechnicworld.astroPrediction.dto.AuthResponse;
 import com.techtechnicworld.astroPrediction.dto.LoginRequest;
 import com.techtechnicworld.astroPrediction.dto.PasswordUpdateRequest;
 import com.techtechnicworld.astroPrediction.dto.RegisterRequest;
-import com.techtechnicworld.astroPrediction.service.Auth.AuthService;
+import com.techtechnicworld.astroPrediction.service.auth.AuthService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
