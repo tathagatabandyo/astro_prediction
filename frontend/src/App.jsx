@@ -6,6 +6,7 @@ import AuthLayout from './layouts/AuthLayout';
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import EmailVerified from './pages/EmailVerified';
 import Astrologers from './pages/Astrologers';
 import Chat from './pages/Chat';
 import Wallet from './pages/Wallet';
@@ -28,6 +29,7 @@ function App() {
       {/* Auth Routes */}
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
+      <Route path="/auth/email-verified" element={<EmailVerified />} />
 
       {/* Main Routes */}
       <Route path="/" element={<MainLayout><Home /></MainLayout>} />
