@@ -18,7 +18,11 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.RequiredArgsConstructor;
 
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -27,6 +31,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 @RequestMapping("/auth")
 public class AuthController {
     private final AuthService authService;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
 
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest loginRequest,
@@ -51,9 +58,19 @@ public class AuthController {
         return ResponseEntity.ok(authService.logout(httpServletRequest, httpServletResponse));
     }
 
-    @PostMapping("/verify-email")
-    public ResponseEntity<ApiResponse<Void>> postMethodName(@RequestParam String token) {
-        return ResponseEntity.ok(authService.verifyEmail(token));
+    @GetMapping("/verify-email")
+    public ResponseEntity<Void> verifyEmail(@RequestParam String token) {
+        String redirectUrl;
+        try {
+            authService.verifyEmail(token);
+            redirectUrl = frontendUrl + "/auth/email-verified?success=true";
+        } catch (Exception e) {
+            redirectUrl = frontendUrl + "/auth/email-verified?success=false&message="
+                    + e.getMessage().replace(" ", "+");
+        }
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, redirectUrl)
+                .build();
     }
 
     @PostMapping("/resend-verification")

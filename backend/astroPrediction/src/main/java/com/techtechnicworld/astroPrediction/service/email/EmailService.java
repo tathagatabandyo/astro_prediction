@@ -34,7 +34,7 @@ public class EmailService implements IEmailService {
             msg.setTo(to);
             msg.setSubject("Verify Your Email - AstroPrediction");
             msg.setText("Hello " + name + ",\n\nPlease verify your email by clicking: " +
-                    domainUrl + "/verify-email?token=" + token +
+                    domainUrl + "/api/auth/verify-email?token=" + token +
                     "\n\nThis link expires in 24 hours.\n\nAstroPrediction Team");
             javaMailSender.send(msg);
         } catch (Exception e) {
@@ -52,7 +52,7 @@ public class EmailService implements IEmailService {
             msg.setTo(to);
             msg.setSubject("Verify Your Email - AstroPrediction");
             msg.setText("Hello " + name + ",\n\nReset your password: " +
-                    domainUrl + "/reset-password?token=" + token +
+                    domainUrl + "/api/auth/reset-password?token=" + token +
                     "\n\nThis link expires in 1 hour.\n\nAstroPrediction Team");
             javaMailSender.send(msg);
         } catch (Exception e) {
