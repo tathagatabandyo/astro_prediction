@@ -6,6 +6,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
 import com.techtechnicworld.astroPrediction.dto.UpdateProfileRequest;
 import com.techtechnicworld.astroPrediction.dto.UserProfileDTO;
+import com.techtechnicworld.astroPrediction.entity.User;
+import com.techtechnicworld.astroPrediction.security.SecurityUtils;
 
 import lombok.RequiredArgsConstructor;
 
@@ -14,8 +16,9 @@ import lombok.RequiredArgsConstructor;
 public class UserService implements IUserService {
     @Override
     public ApiResponse<UserProfileDTO> getCurrentUser() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getCurrentUser'");
+        User userEntity = SecurityUtils.getCurrentUserEntity();
+
+        return ApiResponse.success(UserProfileDTO.from(userEntity));
     }
 
     @Override
@@ -35,5 +38,4 @@ public class UserService implements IUserService {
         // TODO Auto-generated method stub
         throw new UnsupportedOperationException("Unimplemented method 'getUserById'");
     }
-
 }

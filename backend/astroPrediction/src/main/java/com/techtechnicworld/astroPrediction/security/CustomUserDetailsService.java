@@ -15,25 +15,27 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
 
-    private final UserRepository userRepository;
+        private final UserRepository userRepository;
 
-    @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmailWithRoles(email)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        @Override
+        public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+                User user = userRepository.findByEmailWithRoles(email)
+                                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
-        var authorities = user.getUserRoles().stream()
-                .map(ur -> new SimpleGrantedAuthority(ur.getRole().getName().name()))
-                .toList();
+                var authorities = user.getUserRoles().stream()
+                                .map(ur -> new SimpleGrantedAuthority(ur.getRole().getName().name()))
+                                .toList();
 
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .authorities(authorities)
-                .accountExpired(false)
-                .accountLocked(!Boolean.TRUE.equals(user.getIsActive()))
-                .credentialsExpired(false)
-                .disabled(!Boolean.TRUE.equals(user.getIsActive()))
-                .build();
-    }
+                return new CustomUserDetails(user, authorities);
+
+                // return org.springframework.security.core.userdetails.User.builder()
+                // .username(user.getEmail())
+                // .password(user.getPassword())
+                // .authorities(authorities)
+                // .accountExpired(false)
+                // .accountLocked(!Boolean.TRUE.equals(user.getIsActive()))
+                // .credentialsExpired(false)
+                // .disabled(!Boolean.TRUE.equals(user.getIsActive()))
+                // .build();
+        }
 }
