@@ -1,6 +1,7 @@
 package com.techtechnicworld.astroPrediction.entity;
 
 import com.techtechnicworld.enums.AttachmentAccessType;
+import com.techtechnicworld.enums.AttachmentCategory;
 import com.techtechnicworld.enums.AttachmentType;
 
 import jakarta.persistence.Column;
@@ -19,35 +20,22 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(
-    name = "attachments",
-    indexes = {
+@Table(name = "attachments", indexes = {
         // Single-column indexes
         @Index(name = "idx_attachment_content_id", columnList = "content_id"),
         @Index(name = "idx_attachment_batch_number", columnList = "batch_number"),
         @Index(name = "idx_attachment_type", columnList = "attachment_type"),
         @Index(name = "idx_attachment_access_type", columnList = "access_type"),
         @Index(name = "idx_attachment_embedded", columnList = "embedded"),
+        @Index(name = "idx_attachment_category", columnList = "category"),
 
         // Composite indexes
-        @Index(
-            name = "idx_attachment_content_type",
-            columnList = "content_id, attachment_type"
-        ),
-        @Index(
-            name = "idx_attachment_batch_type",
-            columnList = "batch_number, attachment_type"
-        ),
-        @Index(
-            name = "idx_attachment_content_embedded",
-            columnList = "content_id, embedded"
-        ),
-        @Index(
-            name = "idx_attachment_content_access",
-            columnList = "content_id, access_type"
-        )
-    }
-)
+        @Index(name = "idx_attachment_content_type", columnList = "content_id, attachment_type"),
+        @Index(name = "idx_attachment_batch_type", columnList = "batch_number, attachment_type"),
+        @Index(name = "idx_attachment_content_embedded", columnList = "content_id, embedded"),
+        @Index(name = "idx_attachment_content_access", columnList = "content_id, access_type"),
+        @Index(name = "idx_attachment_content_category", columnList = "content_id, category")
+})
 @Getter
 @Setter
 @Builder
@@ -89,6 +77,10 @@ public class AttachmentEntity extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "access_type", nullable = false, length = 20)
     private AttachmentAccessType accessType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "category", nullable = false, length = 255)
+    private AttachmentCategory category;
 
     @Column(name = "embedded", nullable = false)
     @Builder.Default
