@@ -2,6 +2,7 @@ package com.techtechnicworld.astroPrediction.repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -15,6 +16,10 @@ import jakarta.transaction.Transactional;
 public interface AttachmentRepository extends JpaRepository<AttachmentEntity, Long> {
 
     List<AttachmentEntity> findByBatchNumber(String batchNumber);
+
+    Optional<AttachmentEntity> findByIdAndDeletedAtIsNull(Long id);
+
+    Optional<AttachmentEntity> findByStoredFilenameAndDeletedAtIsNull(String storedFilename);
 
     List<AttachmentEntity> findAllByBatchNumberAndDeletedAtIsNull(String batchNumber);
 

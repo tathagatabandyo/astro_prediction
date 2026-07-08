@@ -2,6 +2,7 @@ package com.techtechnicworld.astroPrediction.service.attachment;
 
 import java.util.List;
 
+import org.springframework.core.io.Resource;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
@@ -12,7 +13,7 @@ public interface IAttachmentService {
 
     public ApiResponse<?> createAttachments(CreateAttachmentRequest createAttachmentRequest, List<MultipartFile> files);
 
-    public ApiResponse<?> downloadAttachment(AttachmentRequest downloadAttachmentRequest);
+    public Resource downloadAttachment(AttachmentRequest downloadAttachmentRequest);
 
     public ApiResponse<?> getAttachment(AttachmentRequest getAttachmentRequest);
 

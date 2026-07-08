@@ -45,6 +45,7 @@ public class SecurityConfig {
                         .requestMatchers("/payments/stripe/webhook").permitAll()
                         .requestMatchers("/horoscope/public/**").permitAll()
                         .requestMatchers("/files/public/**").permitAll()
+                        .requestMatchers("/public/attachment/download/**").permitAll()
                         .requestMatchers("/astrologers/search", "/astrologers/**", "/astrologers/featured",
                                 "/astrologers/online")
                         .permitAll()

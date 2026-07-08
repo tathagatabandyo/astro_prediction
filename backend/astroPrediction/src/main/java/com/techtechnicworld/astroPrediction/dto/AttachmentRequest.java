@@ -14,7 +14,8 @@ public record AttachmentRequest(
     public boolean isValidRequest() {
         return id != null
                 || hasText(attachmentName)
-                || hasText(contentId) || hasElements(ids);
+                || hasText(contentId)
+                || hasElements(ids);
     }
 
     private static boolean hasText(String value) {

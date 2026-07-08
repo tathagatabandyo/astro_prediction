@@ -65,7 +65,7 @@ public class AttachmentEntity extends BaseEntity {
     @Column(name = "attachment_type", nullable = false, length = 255)
     private AttachmentType attachmentType;
 
-    @Column(name = "content_id", nullable = false, length = 255)
+    @Column(name = "content_id", length = 255)
     private String contentId;
 
     @Column(name = "batch_number", nullable = false, length = 255)
