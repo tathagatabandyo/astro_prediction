@@ -88,9 +88,7 @@ public class UserService implements IUserService {
                     "NO_FIELDS_TO_UPDATE");
         }
 
-        // No need to call save() because @Transactional + JPA dirty checking
-        // will automatically persist the changes.
-        // userRepository.save(userEntity);
+        userRepository.save(userEntity);
 
         return ApiResponse.success(
                 "Profile updated successfully.",
