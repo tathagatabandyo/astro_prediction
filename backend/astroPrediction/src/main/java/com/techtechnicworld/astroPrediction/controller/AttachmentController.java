@@ -19,10 +19,10 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
 import com.techtechnicworld.astroPrediction.dto.AttachmentRequest;
+import com.techtechnicworld.astroPrediction.dto.AttachmentResponse;
 import com.techtechnicworld.astroPrediction.dto.CreateAttachmentRequest;
-import com.techtechnicworld.astroPrediction.entity.AttachmentEntity;
-import com.techtechnicworld.astroPrediction.exception.ApplicationException;
 import com.techtechnicworld.astroPrediction.service.attachment.IAttachmentService;
+import com.techtechnicworld.enums.AttachmentAccessType;
 
 import lombok.RequiredArgsConstructor;
 
@@ -38,6 +38,14 @@ public class AttachmentController {
             @RequestPart("files") List<MultipartFile> files) {
 
         ApiResponse<?> response = attachmentService.createAttachments(request, files);
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PostMapping(value = "/public/attachment", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<?>> createPublicAttachments(@RequestPart("files") List<MultipartFile> files) {
+
+        ApiResponse<?> response = attachmentService.createAttachments(
+                new CreateAttachmentRequest(null, null, null, AttachmentAccessType.PUBLIC, null), files);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -72,16 +80,15 @@ public class AttachmentController {
     private ResponseEntity<Resource> buildDownloadResponse(String identifier) {
         AttachmentRequest request = resolveRequest(identifier);
 
-        ApiResponse<?> metadata = attachmentService.getAttachment(request);
-        AttachmentEntity entity = (AttachmentEntity) metadata.data();
+        AttachmentResponse metadata = attachmentService.getAttachmentMetadata(request);
 
         Resource resource = attachmentService.downloadAttachment(request);
 
         return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(entity.getMimeType()))
-                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(entity.getFileSize()))
+                .contentType(MediaType.parseMediaType(metadata.mimeType()))
+                .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(metadata.fileSize()))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "inline; filename=\"" + entity.getOriginalFilename() + "\"")
+                        "inline; filename=\"" + metadata.originalFilename() + "\"")
                 .body(resource);
     }
 

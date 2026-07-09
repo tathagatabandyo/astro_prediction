@@ -4,7 +4,7 @@
             "type": "java",
             "name": "Spring Boot-AstroPredictionApplication<astroPrediction>",
             "request": "launch",
-            "cwd": "${workspaceFolder}",
+            "cwd": "${workspaceFolder}/backend/astroPrediction",
             "mainClass": "com.techtechnicworld.astroPrediction.AstroPredictionApplication",
             "projectName": "astroPrediction",
             "args": "",

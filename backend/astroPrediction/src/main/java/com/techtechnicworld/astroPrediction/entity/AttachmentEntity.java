@@ -3,6 +3,7 @@ package com.techtechnicworld.astroPrediction.entity;
 import com.techtechnicworld.enums.AttachmentAccessType;
 import com.techtechnicworld.enums.AttachmentCategory;
 import com.techtechnicworld.enums.AttachmentType;
+import com.techtechnicworld.enums.StorageProvider;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -28,6 +29,7 @@ import lombok.Setter;
         @Index(name = "idx_attachment_access_type", columnList = "access_type"),
         @Index(name = "idx_attachment_embedded", columnList = "embedded"),
         @Index(name = "idx_attachment_category", columnList = "category"),
+        @Index(name = "idx_attachment_storage_provider", columnList = "storage_provider"),
 
         // Composite indexes
         @Index(name = "idx_attachment_content_type", columnList = "content_id, attachment_type"),
@@ -85,4 +87,8 @@ public class AttachmentEntity extends BaseEntity {
     @Column(name = "embedded", nullable = false)
     @Builder.Default
     private Boolean embedded = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "storage_provider", length = 20)
+    private StorageProvider storageProvider;
 }

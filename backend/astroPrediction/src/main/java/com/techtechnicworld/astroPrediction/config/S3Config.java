@@ -14,7 +14,7 @@ import software.amazon.awssdk.services.s3.S3Client;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
-@ConditionalOnProperty(prefix = "attachment.storage", name = "provider", havingValue = "S3")
+@ConditionalOnProperty(prefix = "attachment.storage.s3", name = "region")
 @RequiredArgsConstructor
 public class S3Config {
 

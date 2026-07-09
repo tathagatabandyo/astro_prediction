@@ -16,6 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
 import com.techtechnicworld.astroPrediction.dto.AttachmentRequest;
+import com.techtechnicworld.astroPrediction.dto.AttachmentResponse;
 import com.techtechnicworld.astroPrediction.dto.CreateAttachmentRequest;
 import com.techtechnicworld.astroPrediction.dto.FileStorageResultDto;
 import com.techtechnicworld.astroPrediction.entity.AttachmentEntity;
@@ -26,6 +27,8 @@ import com.techtechnicworld.astroPrediction.exception.ApplicationException;
 import com.techtechnicworld.astroPrediction.exception.ResourceNotFoundException;
 import com.techtechnicworld.astroPrediction.repository.AttachmentRepository;
 import com.techtechnicworld.astroPrediction.service.attachment.storage.IFileStorageService;
+import com.techtechnicworld.astroPrediction.service.attachment.storage.StorageProperties;
+import com.techtechnicworld.enums.StorageProvider;
 
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -35,7 +38,8 @@ import lombok.RequiredArgsConstructor;
 public class AttachmentService implements IAttachmentService {
 
     private final AttachmentRepository attachmentRepository;
-    private final IFileStorageService fileStorageService;
+    private final List<IFileStorageService> fileStorageServices;
+    private final StorageProperties storageProperties;
 
     @Value("${domain:http://localhost:8085}")
     private String domain;
@@ -45,7 +49,7 @@ public class AttachmentService implements IAttachmentService {
 
     @Override
     @Transactional
-    public ApiResponse<?> createAttachments(CreateAttachmentRequest createAttachmentRequest,
+    public ApiResponse<List<AttachmentResponse>> createAttachments(CreateAttachmentRequest createAttachmentRequest,
             List<MultipartFile> files) {
 
         if (files == null || files.isEmpty()) {
@@ -67,6 +71,8 @@ public class AttachmentService implements IAttachmentService {
                 .orElse(null);
 
         List<AttachmentEntity> attachmentEntities = new ArrayList<>();
+        StorageProvider provider = storageProperties.getProvider();
+        IFileStorageService fileStorageService = storageServiceFor(provider);
 
         try {
             for (MultipartFile file : files) {
@@ -85,6 +91,7 @@ public class AttachmentService implements IAttachmentService {
                         .batchNumber(batchNumber)
                         .accessType(createAttachmentRequest.accessType())
                         .embedded(embedded)
+                        .storageProvider(provider)
                         .build();
 
                 attachmentEntities.add(attachmentEntity);
@@ -102,7 +109,7 @@ public class AttachmentService implements IAttachmentService {
 
         saved = attachmentRepository.saveAll(saved);
 
-        return ApiResponse.success("Attachments created successfully.", saved);
+        return ApiResponse.success("Attachments created successfully.", AttachmentResponse.from(saved));
     }
 
     private String getAttachmentUrl(AttachmentEntity attachment) {
@@ -120,6 +127,7 @@ public class AttachmentService implements IAttachmentService {
     @Override
     public Resource downloadAttachment(AttachmentRequest downloadAttachmentRequest) {
         AttachmentEntity attachment = resolveAttachment(downloadAttachmentRequest);
+        IFileStorageService fileStorageService = storageServiceFor(attachment);
 
         try {
             InputStream stream = fileStorageService.download(attachment.getPath());
@@ -133,12 +141,15 @@ public class AttachmentService implements IAttachmentService {
     @Override
     public ApiResponse<?> getAttachment(AttachmentRequest getAttachmentRequest) {
         if (getAttachmentRequest.ids() != null && !getAttachmentRequest.ids().isEmpty()) {
-            return ApiResponse.success(getAllByIds(getAttachmentRequest.ids()));
+            return ApiResponse.success(AttachmentResponse.from(getAllByIds(getAttachmentRequest.ids())));
         }
 
-        AttachmentEntity attachment = resolveAttachment(getAttachmentRequest);
+        return ApiResponse.success(getAttachmentMetadata(getAttachmentRequest));
+    }
 
-        return ApiResponse.success(attachment);
+    @Override
+    public AttachmentResponse getAttachmentMetadata(AttachmentRequest getAttachmentRequest) {
+        return AttachmentResponse.from(resolveAttachment(getAttachmentRequest));
     }
 
     @Override
@@ -153,6 +164,7 @@ public class AttachmentService implements IAttachmentService {
 
         for (AttachmentEntity attachment : attachments) {
             try {
+                IFileStorageService fileStorageService = storageServiceFor(attachment);
                 fileStorageService.delete(attachment.getPath());
             } catch (Exception e) {
                 throw new ApplicationException(HttpStatus.INTERNAL_SERVER_ERROR, "FAILED_DELETE_ATTACHMENT",
@@ -181,7 +193,7 @@ public class AttachmentService implements IAttachmentService {
     }
 
     @Override
-    public ApiResponse<?> getAttachments(Integer start, Integer limit) {
+    public ApiResponse<List<AttachmentResponse>> getAttachments(Integer start, Integer limit) {
         int page = Optional.ofNullable(start).filter(s -> s > 0).orElse(0);
         int size = Optional.ofNullable(limit).filter(l -> l > 0).orElse(20);
 
@@ -189,7 +201,7 @@ public class AttachmentService implements IAttachmentService {
                 .findAll(PageRequest.of(page, size))
                 .getContent();
 
-        return ApiResponse.success(attachments);
+        return ApiResponse.success(AttachmentResponse.from(attachments));
     }
 
     private AttachmentType getAttachmentType(MultipartFile file) {
@@ -229,6 +241,23 @@ public class AttachmentService implements IAttachmentService {
             return AttachmentType.DOCUMENT;
         }
         return AttachmentType.OTHER;
+    }
+
+    private IFileStorageService storageServiceFor(AttachmentEntity attachment) {
+        StorageProvider provider = Optional.ofNullable(attachment.getStorageProvider())
+                .orElse(storageProperties.getProvider());
+
+        return storageServiceFor(provider);
+    }
+
+    private IFileStorageService storageServiceFor(StorageProvider provider) {
+        return fileStorageServices.stream()
+                .filter(service -> service.getProvider() == provider)
+                .findFirst()
+                .orElseThrow(() -> new ApplicationException(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "STORAGE_PROVIDER_NOT_AVAILABLE",
+                        "Storage provider " + provider + " is not enabled in this application."));
     }
 
     private AttachmentEntity resolveAttachment(AttachmentRequest request) {

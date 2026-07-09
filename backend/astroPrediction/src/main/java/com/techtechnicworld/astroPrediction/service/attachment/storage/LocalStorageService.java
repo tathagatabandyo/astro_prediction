@@ -12,22 +12,26 @@ import java.util.UUID;
 
 import org.springframework.util.StringUtils;
 
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.FileStorageResultDto;
+import com.techtechnicworld.enums.StorageProvider;
 
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 @Service
-@ConditionalOnProperty(prefix = "attachment.storage", name = "provider", havingValue = "LOCAL", matchIfMissing = true)
 @RequiredArgsConstructor
 public class LocalStorageService implements IFileStorageService {
 
     private final StorageProperties storageProperties;
     private Path rootDirectory;
+
+    @Override
+    public StorageProvider getProvider() {
+        return StorageProvider.LOCAL;
+    }
 
     @PostConstruct
     public void initialize() throws IOException {
@@ -55,6 +59,8 @@ public class LocalStorageService implements IFileStorageService {
                 .resolve(String.valueOf(today.getYear()))
                 .resolve(String.format("%02d", today.getMonthValue()))
                 .resolve(String.format("%02d", today.getDayOfMonth()));
+
+        Files.createDirectories(targetDirectory);
 
         Path targetFile = targetDirectory.resolve(storedFilename);
 

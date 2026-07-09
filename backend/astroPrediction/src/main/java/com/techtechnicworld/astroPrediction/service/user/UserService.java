@@ -1,15 +1,22 @@
 package com.techtechnicworld.astroPrediction.service.user;
 
 import com.techtechnicworld.astroPrediction.repository.UserRepository;
+
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
+import com.techtechnicworld.astroPrediction.dto.CreateAttachmentRequest;
 import com.techtechnicworld.astroPrediction.dto.UpdateProfileRequest;
 import com.techtechnicworld.astroPrediction.dto.UserProfileDTO;
 import com.techtechnicworld.astroPrediction.entity.User;
 import com.techtechnicworld.astroPrediction.security.SecurityUtils;
+import com.techtechnicworld.astroPrediction.service.attachment.AttachmentService;
+import com.techtechnicworld.enums.AttachmentAccessType;
+import com.techtechnicworld.enums.AttachmentCategory;
 
 import lombok.RequiredArgsConstructor;
 
@@ -17,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class UserService implements IUserService {
     private final UserRepository userRepository;
+    private final AttachmentService attachmentService;
 
     @Override
     public ApiResponse<UserProfileDTO> getCurrentUser() {
@@ -87,9 +95,13 @@ public class UserService implements IUserService {
     }
 
     @Override
+    @Transactional
     public ApiResponse<String> uploadProfileImage(MultipartFile file) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'uploadProfileImage'");
+        throw new UnsupportedOperationException("Unimplemented method 'getUserById'");
+        // User userEntity = SecurityUtils.getCurrentUserEntity();
+
+        // attachmentService.createAttachments(
+        //         new CreateAttachmentRequest(null, null, AttachmentCategory.PROFILE, AttachmentAccessType.PUBLIC, null), List.of(file));
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.FileStorageResultDto;
+import com.techtechnicworld.enums.StorageProvider;
 
 import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -19,13 +20,18 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 import software.amazon.awssdk.services.s3.model.S3Exception;
 
 @Service
-@ConditionalOnProperty(prefix = "attachment.storage", name = "provider", havingValue = "S3")
+@ConditionalOnProperty(prefix = "attachment.storage.s3", name = "region")
 @RequiredArgsConstructor
 public class S3StorageService implements IFileStorageService {
 
     private final S3Client s3Client;
 
     private final StorageProperties storageProperties;
+
+    @Override
+    public StorageProvider getProvider() {
+        return StorageProvider.S3;
+    }
 
     private String bucketName() {
         return storageProperties.getS3().getBucketName();

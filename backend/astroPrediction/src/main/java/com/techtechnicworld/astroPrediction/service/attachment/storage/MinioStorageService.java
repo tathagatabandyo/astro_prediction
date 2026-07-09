@@ -8,6 +8,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.FileStorageResultDto;
+import com.techtechnicworld.enums.StorageProvider;
 
 import io.minio.BucketExistsArgs;
 import io.minio.GetObjectArgs;
@@ -22,7 +23,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 
 @Service
-@ConditionalOnProperty(prefix = "attachment.storage", name = "provider", havingValue = "MINIO")
+@ConditionalOnProperty(prefix = "attachment.storage.minio", name = "url")
 @RequiredArgsConstructor
 public class MinioStorageService implements IFileStorageService {
 
@@ -32,26 +33,19 @@ public class MinioStorageService implements IFileStorageService {
 
     private String bucketName;
 
+    @Override
+    public StorageProvider getProvider() {
+        return StorageProvider.MINIO;
+    }
+
     @PostConstruct
-    public void initialize() throws Exception {
-
+    public void initialize() {
         bucketName = storageProperties.getBucketName();
-
-        boolean exists = minioClient.bucketExists(
-                BucketExistsArgs.builder()
-                        .bucket(bucketName)
-                        .build());
-
-        if (!exists) {
-            minioClient.makeBucket(
-                    MakeBucketArgs.builder()
-                            .bucket(bucketName)
-                            .build());
-        }
     }
 
     @Override
     public FileStorageResultDto upload(MultipartFile file, String folder) throws Exception {
+        ensureBucketExists();
 
         String objectName = folder + "/" + java.util.UUID.randomUUID() + "_"
                 + org.springframework.util.StringUtils.cleanPath(file.getOriginalFilename());
@@ -119,6 +113,20 @@ public class MinioStorageService implements IFileStorageService {
             return true;
         } catch (io.minio.errors.ErrorResponseException e) {
             return false;
+        }
+    }
+
+    private void ensureBucketExists() throws Exception {
+        boolean exists = minioClient.bucketExists(
+                BucketExistsArgs.builder()
+                        .bucket(bucketName)
+                        .build());
+
+        if (!exists) {
+            minioClient.makeBucket(
+                    MakeBucketArgs.builder()
+                            .bucket(bucketName)
+                            .build());
         }
     }
 }

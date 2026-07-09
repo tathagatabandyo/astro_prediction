@@ -66,6 +66,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 || path.equals("/api/payments/stripe/webhook")
                 || path.startsWith("/api/horoscope/public/")
                 || path.startsWith("/api/files/public/")
+                || path.startsWith("/api/public/attachment/")
                 || path.startsWith("/api/ws/");
     }
 }

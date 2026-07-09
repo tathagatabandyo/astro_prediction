@@ -5,8 +5,11 @@ import java.io.InputStream;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.FileStorageResultDto;
+import com.techtechnicworld.enums.StorageProvider;
 
 public interface IFileStorageService {
+    StorageProvider getProvider();
+
     /**
      * Upload file.
      *

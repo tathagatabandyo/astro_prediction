@@ -10,7 +10,7 @@ import io.minio.MinioClient;
 import lombok.RequiredArgsConstructor;
 
 @Configuration
-@ConditionalOnProperty(prefix = "attachment.storage", name = "provider", havingValue = "MINIO")
+@ConditionalOnProperty(prefix = "attachment.storage.minio", name = "url")
 @RequiredArgsConstructor
 public class MinioConfig {
 
