@@ -9,10 +9,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
+import com.techtechnicworld.astroPrediction.dto.AttachmentRequest;
+import com.techtechnicworld.astroPrediction.dto.AttachmentResponse;
 import com.techtechnicworld.astroPrediction.dto.CreateAttachmentRequest;
 import com.techtechnicworld.astroPrediction.dto.UpdateProfileRequest;
 import com.techtechnicworld.astroPrediction.dto.UserProfileDTO;
 import com.techtechnicworld.astroPrediction.entity.User;
+import com.techtechnicworld.astroPrediction.exception.ResourceNotFoundException;
 import com.techtechnicworld.astroPrediction.security.SecurityUtils;
 import com.techtechnicworld.astroPrediction.service.attachment.AttachmentService;
 import com.techtechnicworld.enums.AttachmentAccessType;
@@ -97,17 +100,44 @@ public class UserService implements IUserService {
     @Override
     @Transactional
     public ApiResponse<String> uploadProfileImage(MultipartFile file) {
-        throw new UnsupportedOperationException("Unimplemented method 'getUserById'");
-        // User userEntity = SecurityUtils.getCurrentUserEntity();
+        if (file == null || file.isEmpty()) {
+            return ApiResponse.error("Profile image file is required.", "EMPTY_PROFILE_IMAGE");
+        }
 
-        // attachmentService.createAttachments(
-        //         new CreateAttachmentRequest(null, null, AttachmentCategory.PROFILE, AttachmentAccessType.PUBLIC, null), List.of(file));
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.toLowerCase().startsWith("image/")) {
+            return ApiResponse.error("Only image files are allowed.", "INVALID_PROFILE_IMAGE_TYPE");
+        }
+
+        User userEntity = SecurityUtils.getCurrentUserEntity();
+
+        // delete existing Attachment
+        if (userEntity.getProfileImageId() != null) {
+            attachmentService.deleteAttachment(new AttachmentRequest(userEntity.getProfileImageId(), null, null, null));
+        }
+
+        ApiResponse<List<AttachmentResponse>> attachmentResponse = attachmentService.createAttachments(
+                new CreateAttachmentRequest(
+                        null,
+                        null,
+                        AttachmentCategory.PROFILE,
+                        AttachmentAccessType.PUBLIC,
+                        false),
+                List.of(file));
+
+        AttachmentResponse profileImage = attachmentResponse.data().getFirst();
+        userEntity.setProfileImageId(profileImage.id());
+        userRepository.save(userEntity);
+
+        return ApiResponse.success("Profile image uploaded successfully.", profileImage.url());
     }
 
     @Override
     public ApiResponse<UserProfileDTO> getUserById(Long id) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getUserById'");
+        User userEntity = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        return ApiResponse.success(UserProfileDTO.from(userEntity));
     }
 
     private <T> boolean updateIfChanged(
