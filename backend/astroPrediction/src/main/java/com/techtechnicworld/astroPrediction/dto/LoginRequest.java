@@ -1,5 +1,7 @@
 package com.techtechnicworld.astroPrediction.dto;
 
+import com.techtechnicworld.enums.DeviceType;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
