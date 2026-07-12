@@ -1,6 +1,12 @@
 package com.techtechnicworld.astroPrediction.entity;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.hibernate.annotations.DynamicUpdate;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import com.techtechnicworld.enums.VerificationStatus;
 
@@ -12,7 +18,6 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
-import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
@@ -23,21 +28,19 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Table(name = "astrologer_profiles", indexes = {
-        @Index(name = "idx_ap_verification_status", columnList = "verification_status"),
-        @Index(name = "idx_ap_online_verified_rating", columnList = "is_online, is_verified, average_rating"),
-})
+@Table(name = "astrologer_profiles")
+@NoArgsConstructor
+@AllArgsConstructor
 @Getter
 @Setter
 @Builder
-@NoArgsConstructor
-@AllArgsConstructor
-public class AstrologerProfile extends BaseEntity {
+@DynamicUpdate
+public class AstrologerProfileEntity extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @OneToOne(fetch = FetchType.LAZY)
+    @OneToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
@@ -47,11 +50,21 @@ public class AstrologerProfile extends BaseEntity {
     @Column(name = "experience_years")
     private Integer experienceYears;
 
-    @Column(columnDefinition = "JSON")
-    private String languages;
+    // @Column(columnDefinition = "JSON")
+    // private String languages;
 
-    @Column(columnDefinition = "JSON")
-    private String expertise;
+    // @Column(columnDefinition = "JSON")
+    // private String expertise;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<String> languages = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb", nullable = false)
+    @Builder.Default
+    private List<String> expertise = new ArrayList<>();
 
     @Column(name = "pricing_per_minute", precision = 10, scale = 2)
     @Builder.Default
@@ -70,11 +83,21 @@ public class AstrologerProfile extends BaseEntity {
     @Builder.Default
     private VerificationStatus verificationStatus = VerificationStatus.PENDING;
 
-    @Column(columnDefinition = "JSON")
-    private String certifications;
+    // @Column(columnDefinition = "JSON")
+    // private String certifications;
 
-    @Column(name = "kyc_documents", columnDefinition = "JSON")
-    private String kycDocuments;
+    // @Column(name = "kyc_documents", columnDefinition = "JSON")
+    // private String kycDocuments;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> certifications = new ArrayList<>();
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "kyc_documents", columnDefinition = "jsonb")
+    @Builder.Default
+    private List<String> kycDocuments = new ArrayList<>();
 
     @Column(name = "intro_video_url", length = 500)
     private String introVideoUrl;

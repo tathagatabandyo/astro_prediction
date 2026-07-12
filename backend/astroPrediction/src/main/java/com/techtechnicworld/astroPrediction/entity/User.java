@@ -96,5 +96,5 @@ public class User extends BaseEntity {
     private Wallet wallet;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private AstrologerProfile astrologerProfile;
+    private AstrologerProfileEntity astrologerProfile;
 }

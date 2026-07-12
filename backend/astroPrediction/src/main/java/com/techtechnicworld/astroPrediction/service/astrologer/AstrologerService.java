@@ -3,14 +3,25 @@ package com.techtechnicworld.astroPrediction.service.astrologer;
 import java.math.BigDecimal;
 import java.util.List;
 
+import org.springframework.stereotype.Service;
+
 import com.techtechnicworld.astroPrediction.dto.ApiResponse;
 import com.techtechnicworld.astroPrediction.dto.AstrologerApplicationRequest;
 import com.techtechnicworld.astroPrediction.dto.AstrologerDTO;
 import com.techtechnicworld.astroPrediction.dto.AstrologerProfileDTO;
 import com.techtechnicworld.astroPrediction.dto.AstrologerSearchRequest;
 import com.techtechnicworld.astroPrediction.dto.PageResponse;
+import com.techtechnicworld.astroPrediction.entity.AstrologerProfileEntity;
+import com.techtechnicworld.astroPrediction.repository.AstrologerProfileRepository;
+import com.techtechnicworld.enums.VerificationStatus;
 
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
 public class AstrologerService implements IAstrologerService {
+
+    private final AstrologerProfileRepository astrologerProfileRepository;
 
     @Override
     public ApiResponse<AstrologerProfileDTO> applyForOnboarding(AstrologerApplicationRequest request) {
@@ -44,8 +55,10 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<List<AstrologerDTO>> getFeaturedAstrologers() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getFeaturedAstrologers'");
+        List<AstrologerProfileEntity> astrologerProfileEntities = astrologerProfileRepository
+                .findTop8ByVerificationStatusAndDeletedAtIsNullOrderByAverageRatingDesc(VerificationStatus.APPROVED);
+
+        return ApiResponse.success(AstrologerDTO.from(astrologerProfileEntities));
     }
 
     @Override
