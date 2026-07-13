@@ -22,14 +22,31 @@ public interface AstrologerProfileRepository extends JpaRepository<AstrologerPro
     List<AstrologerProfileEntity> findTop8ByVerificationStatusAndDeletedAtIsNullOrderByAverageRatingDesc(
             VerificationStatus status);
 
-    @Query("SELECT a FROM AstrologerProfileEntity a WHERE a.deletedAt IS NULL AND a.verificationStatus = 'APPROVED' AND "
-            +
-            "(:search IS NULL OR a.user.fullName LIKE %:search%) AND " +
-            "(:languages IS NULL OR a.languages LIKE %:languages%) AND " +
-            "(:expertise IS NULL OR a.expertise LIKE %:expertise%) AND " +
-            "(:minPrice IS NULL OR a.pricingPerMinute >= :minPrice) AND " +
-            "(:maxPrice IS NULL OR a.pricingPerMinute <= :maxPrice) AND " +
-            "(:minRating IS NULL OR a.averageRating >= :minRating)")
+    @Query(value = """
+            SELECT a.*
+            FROM astrologer_profiles a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.deleted_at IS NULL
+              AND a.verification_status = 'APPROVED'
+              AND (:search IS NULL OR u.full_name ILIKE CONCAT('%', :search, '%'))
+              AND (:languages IS NULL OR CAST(a.languages AS text) ILIKE CONCAT('%', :languages, '%'))
+              AND (:expertise IS NULL OR CAST(a.expertise AS text) ILIKE CONCAT('%', :expertise, '%'))
+              AND (:minPrice IS NULL OR a.pricing_per_minute >= :minPrice)
+              AND (:maxPrice IS NULL OR a.pricing_per_minute <= :maxPrice)
+              AND (:minRating IS NULL OR a.average_rating >= :minRating)
+            """, countQuery = """
+            SELECT COUNT(*)
+            FROM astrologer_profiles a
+            JOIN users u ON u.id = a.user_id
+            WHERE a.deleted_at IS NULL
+              AND a.verification_status = 'APPROVED'
+              AND (:search IS NULL OR u.full_name ILIKE CONCAT('%', :search, '%'))
+              AND (:languages IS NULL OR CAST(a.languages AS text) ILIKE CONCAT('%', :languages, '%'))
+              AND (:expertise IS NULL OR CAST(a.expertise AS text) ILIKE CONCAT('%', :expertise, '%'))
+              AND (:minPrice IS NULL OR a.pricing_per_minute >= :minPrice)
+              AND (:maxPrice IS NULL OR a.pricing_per_minute <= :maxPrice)
+              AND (:minRating IS NULL OR a.average_rating >= :minRating)
+            """, nativeQuery = true)
     Page<AstrologerProfileEntity> searchAstrologers(String search, String languages, String expertise,
             BigDecimal minPrice, BigDecimal maxPrice, Integer minRating, Pageable pageable);
 }
