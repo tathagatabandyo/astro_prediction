@@ -14,6 +14,7 @@ import com.techtechnicworld.enums.VerificationStatus;
 
 public interface AstrologerProfileRepository extends JpaRepository<AstrologerProfileEntity, Long> {
     Optional<AstrologerProfileEntity> findByUserIdAndDeletedAtIsNull(Long userId);
+    Optional<AstrologerProfileEntity> findByIdAndDeletedAtIsNull(Long id);
 
     List<AstrologerProfileEntity> findByIsOnlineTrueAndVerificationStatusAndDeletedAtIsNull(VerificationStatus status);
 

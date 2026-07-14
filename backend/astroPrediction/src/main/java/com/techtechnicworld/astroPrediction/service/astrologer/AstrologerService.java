@@ -64,14 +64,38 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<AstrologerProfileDTO> updateProfile(AstrologerApplicationRequest request) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'updateProfile'");
+        User userEntity = SecurityUtils.getCurrentUserEntity();
+
+        AstrologerProfileEntity astrologerProfileEntity = astrologerProfileRepository
+                .findByUserIdAndDeletedAtIsNull(userEntity.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
+
+        astrologerProfileEntity.setBio(request.bio());
+        astrologerProfileEntity.setExperienceYears(request.experienceYears());
+        astrologerProfileEntity.setLanguages(request.languages());
+        astrologerProfileEntity.setExpertise(request.expertise());
+        astrologerProfileEntity.setPricingPerMinute(request.pricingPerMinute());
+
+        astrologerProfileRepository.save(astrologerProfileEntity);
+
+        return ApiResponse.success("Profile updated", AstrologerProfileDTO.from(astrologerProfileEntity));
     }
 
     @Override
     public ApiResponse<Void> toggleOnlineStatus() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'toggleOnlineStatus'");
+        User userEntity = SecurityUtils.getCurrentUserEntity();
+
+        AstrologerProfileEntity astrologerProfileEntity = astrologerProfileRepository
+                .findByUserIdAndDeletedAtIsNull(userEntity.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
+
+        astrologerProfileEntity.setIsOnline(!astrologerProfileEntity.getIsOnline());
+
+        astrologerProfileRepository.save(astrologerProfileEntity);
+
+        return ApiResponse.success(
+                "Status updated to " + (astrologerProfileEntity.getIsOnline().booleanValue() ? "online" : "offline"),
+                null);
     }
 
     @Override
@@ -82,8 +106,11 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<AstrologerDTO> getAstrologerById(Long id) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getAstrologerById'");
+        AstrologerProfileEntity astrologerProfileEntity = astrologerProfileRepository
+                .findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found"));
+
+        return ApiResponse.success(AstrologerDTO.from(astrologerProfileEntity));
     }
 
     @Override
@@ -96,8 +123,10 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<List<AstrologerDTO>> getOnlineAstrologers() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getOnlineAstrologers'");
+        List<AstrologerProfileEntity> astrologerProfileEntities = astrologerProfileRepository
+                .findByIsOnlineTrueAndVerificationStatusAndDeletedAtIsNull(VerificationStatus.APPROVED);
+
+        return ApiResponse.success(AstrologerDTO.from(astrologerProfileEntities));
     }
 
     @Override
@@ -108,8 +137,10 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<List<AstrologerProfileDTO>> getPendingApprovals() {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'getPendingApprovals'");
+        List<AstrologerProfileEntity> astrologerProfileEntities = astrologerProfileRepository
+                .findByVerificationStatusAndDeletedAtIsNull(VerificationStatus.PENDING);
+
+        return ApiResponse.success(AstrologerProfileDTO.from(astrologerProfileEntities));
     }
 
     @Override
