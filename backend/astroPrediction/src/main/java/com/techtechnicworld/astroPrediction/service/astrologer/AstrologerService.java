@@ -145,13 +145,26 @@ public class AstrologerService implements IAstrologerService {
 
     @Override
     public ApiResponse<Void> approveAstrologer(Long id) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'approveAstrologer'");
+        AstrologerProfileEntity astrologerProfileEntity = astrologerProfileRepository
+                .findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Astrologer not found"));
+        astrologerProfileEntity.setVerificationStatus(VerificationStatus.APPROVED);
+        astrologerProfileEntity.setIsVerified(true);
+
+        astrologerProfileRepository.save(astrologerProfileEntity);
+
+        return ApiResponse.success("Astrologer approved", null);
     }
 
     @Override
     public ApiResponse<Void> rejectAstrologer(Long id, String reason) {
-        // TODO Auto-generated method stub
-        throw new UnsupportedOperationException("Unimplemented method 'rejectAstrologer'");
+        AstrologerProfileEntity astrologerProfileEntity = astrologerProfileRepository
+                .findByIdAndDeletedAtIsNull(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Astrologer not found"));
+        astrologerProfileEntity.setVerificationStatus(VerificationStatus.REJECTED);
+
+        astrologerProfileRepository.save(astrologerProfileEntity);
+
+        return ApiResponse.success("Astrologer rejected: " + reason, null);
     }
 }
